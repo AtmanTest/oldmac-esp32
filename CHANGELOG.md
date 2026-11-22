@@ -1,5 +1,32 @@
 # Journal des versions — oldmac-esp32
 
+## 1.2.0 — 2026-11-22 — une souris pour le Macintosh
+
+Pas de souris USB possible sur cette carte (le port sert au flash et à
+l'alimentation : en mode hôte on perd la console, et rien ne garantit le 5 V
+sur VBUS). Le pointeur vient donc du PC, par le réseau.
+
+### Ajoute
+- `GET /clic?x=&y=` : un clic en pixels (0..199), traité comme un doigt placé.
+  Bureau : ouvre l'icône touchée (corbeille reconnue) ; fenêtre : la barre de
+  titre ou le pied ferment, le corps tourne la page ; SAFARI se recharge en
+  s'ouvrant.
+- Pointeur dessiné sur la dalle (flèche 7x11, liseré blanc pour rester lisible
+  sur le texte), position exposée dans `/etat` → `"souris":[x,y]`.
+- `tools/souris.py` : fenêtre du PC qui affiche l'écran de la carte (via
+  `/ecran`) et envoie chaque clic ; boutons B1/B2 et touches 1/2/3 ;
+  entrée de menu « SOURIS » (oldmac-souris.desktop).
+- `tests/unit/test_souris.cpp` : 55 vérifications de géométrie — chaque icône
+  se trouve à son centre, Safari en 7e position, corbeille à 99, vide à -1,
+  aucune icône hors dalle ni qui se recouvre.
+- `tools/apercu.cpp clic` : rendu du pointeur sur le bureau, vérifié à l'œil
+  avant tout flash.
+
+### Etat de vérification
+- Compilé (image 0x10dcd0, 27 % libres) et testé sur le PC : 88 vérifications.
+- PAS encore vérifié sur la dalle : la carte s'est déconnectée de l'USB avant
+  le flash. À faire au prochain branchement (un `idf.py flash` + un clic).
+
 ## 1.1.1 — 2026-11-22 — l'heure et le reseau disent la verite
 
 ### Corrige

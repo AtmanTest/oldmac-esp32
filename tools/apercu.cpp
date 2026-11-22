@@ -86,6 +86,9 @@ int main(int argc, char **argv)
         s.saf_octets = 768 * 1024;
         s.saf_ms = 2140;
     }
+    else if (!strcmp(vue, "clic")) {
+        s.vue = VUE_BUREAU; s.souris = true; s.mx = 172; s.my = 82;
+    }
     else if (!strcmp(vue, "safari-attente")) { s.vue = VUE_SAFARI; s.saf_etat = 1; }
     else if (!strcmp(vue, "safari-echec")) {
         s.vue = VUE_SAFARI; s.saf_etat = 3;

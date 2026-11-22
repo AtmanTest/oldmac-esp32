@@ -225,7 +225,6 @@ static void vue_finder(const app_t *s)
 {
     fenetre("Macintosh HD");
     int x = OM_WIN_X + 6, y = OM_WIN_Y + OM_TITRE_H + 5;
-    char l[48];
     texte(x, y, 1, "6 elements, 800 Ko");
     y += 9;
     const char *items[6];
@@ -434,6 +433,33 @@ static void vue_safari(const app_t *s)
 }
 
 /* ------------------------------------------------------------------ */
+/* la souris : une fleche, dessinee par-dessus tout                     */
+/* ------------------------------------------------------------------ */
+static void pointeur(int x, int y)
+{
+    /* la fleche du Macintosh : une hampe et deux barbes, 7 x 11 px */
+    a_seg(x, y, x, y + 9, 1);
+    a_seg(x, y, x + 5, y + 5, 1);
+    a_seg(x + 1, y + 5, x + 3, y + 4, 1);
+    a_seg(x + 3, y + 7, x + 5, y + 10, 1);
+    a_seg(x + 4, y + 8, x + 6, y + 10, 1);
+    /* un liseré blanc pour rester lisible sur le texte */
+    a_seg(x - 1, y - 1, x - 1, y + 10, 0);
+    a_seg(x - 1, y + 10, x + 6, y + 10, 0);
+}
+
+/* ------------------------------------------------------------------ */
+/* zones cliquables : meme geometrie que le dessin                      */
+/* ------------------------------------------------------------------ */
+int ui_clic_bureau(int x, int y)
+{
+    int i = ui_icone_sous(x, y);
+    if (i >= 0) return i;
+    if (x >= 156 && x <= 184 && y >= 144 && y <= 168) return 99;   /* corbeille */
+    return -1;
+}
+
+/* ------------------------------------------------------------------ */
 /* l'ecran complet                                                    */
 /* ------------------------------------------------------------------ */
 void ui_dessine(const app_t *s)
@@ -502,6 +528,14 @@ void ui_dessine(const app_t *s)
     } else {
         texte(4, OM_PIED_Y + 3, 1, "B2 : page   B1 : fermer");
         texte(4, OM_PIED_Y + 10, 1, "B2 long : bureau");
+    }
+    if (s->souris) {
+        int px = s->mx, py = s->my;
+        if (px < 0) px = 0;
+        if (px > OM_W - 8) px = OM_W - 8;
+        if (py < 0) py = 0;
+        if (py > OM_H - 12) py = OM_H - 12;
+        pointeur(px, py);
     }
     if (s->message[0]) {
         int w = a_text_w(1, s->message);

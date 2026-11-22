@@ -282,6 +282,7 @@ static esp_err_t h_etat(httpd_req_t *r)
              "\"heure\":\"%s\",\"heure_ok\":%s,\"date\":\"%s\","
              "\"heap\":%u,\"psram\":%u,\"uptime_min\":%d,\"temp\":%.1f,"
              "\"rendu_ms\":%u,"
+             "\"souris\":[%d,%d],\n"
              "\"safari\":{\"etat\":%d,\"code\":%d,\"lignes\":%d,\"pages\":%d,"
              "\"octets\":%d,\"ms\":%d,\"url\":\"%s\",\"erreur\":\"%s\"}}",
              g.vue, g.sel, g.page, g.boot, g.wifi ? "true" : "false",
@@ -289,6 +290,7 @@ static esp_err_t h_etat(httpd_req_t *r)
              g.heure_ok ? "true" : "false", g.date, (unsigned)g.heap_libre,
              (unsigned)g.psram_libre, g.uptime_min, (double)g.temp_c,
              (unsigned)g.rendu_ms,
+             g.mx, g.my,
              g.saf_etat, g.saf_code, g.saf_lignes, g.saf_pages,
              g.saf_octets, g.saf_ms, safari_url(), g.saf_err);
     httpd_resp_set_type(r, "application/json");
@@ -339,6 +341,18 @@ static esp_err_t h_safari(httpd_req_t *r)
     return httpd_resp_sendstr(r, "ok\n");
 }
 
+static esp_err_t h_clic(httpd_req_t *r)
+{
+    char q[64], v[8];
+    int x = 0, y = 0;
+    if (httpd_req_get_url_query_str(r, q, sizeof(q)) != ESP_OK)
+        return httpd_resp_sendstr(r, "ok\n");
+    if (httpd_query_key_value(q, "x", v, sizeof(v)) == ESP_OK) x = atoi(v);
+    if (httpd_query_key_value(q, "y", v, sizeof(v)) == ESP_OK) y = atoi(v);
+    app_clic(x, y);
+    return httpd_resp_sendstr(r, "ok\n");
+}
+
 static esp_err_t h_racine(httpd_req_t *r)
 {
     const char *html =
@@ -352,6 +366,8 @@ static esp_err_t h_racine(httpd_req_t *r)
         "simuler un geste<br>"
         "<a style='color:#6cf' href='/safari'>/safari</a> : recharger la page "
         "web en texte<br>"
+        "<a style='color:#6cf' href='/clic?x=30&y=30'>/clic?x=30&y=30</a> : "
+        "clic a l'ecran<br>"
         "<a style='color:#6cf' href='/vue?n=7'>/vue?n=7</a> : ouvrir Safari"
         "</p></body>";
     httpd_resp_set_type(r, "text/html");
@@ -374,12 +390,14 @@ static void api_demarre(void)
     httpd_uri_t u4 = { "/vue", HTTP_GET, h_vue, NULL };
     httpd_uri_t u5 = { "/bouton", HTTP_GET, h_bouton, NULL };
     httpd_uri_t u6 = { "/safari", HTTP_GET, h_safari, NULL };
+    httpd_uri_t u7 = { "/clic", HTTP_GET, h_clic, NULL };
     httpd_register_uri_handler(srv, &u1);
     httpd_register_uri_handler(srv, &u2);
     httpd_register_uri_handler(srv, &u3);
     httpd_register_uri_handler(srv, &u4);
     httpd_register_uri_handler(srv, &u5);
     httpd_register_uri_handler(srv, &u6);
+    httpd_register_uri_handler(srv, &u7);
     ESP_LOGI(TAG, "api : http://<ip>/ (etat, ecran, vue, bouton)");
 }
 
@@ -402,6 +420,44 @@ static void message(const char *m)
 {
     snprintf(g.message, sizeof(g.message), "%.39s", m);
     g.message_ms = 1400;
+}
+
+/* un clic a l'ecran, en pixels : la meme chose qu'un doigt, mais place.
+   Le bureau ouvre l'icone touchee ; la barre de titre ou le pied ferment ;
+   ailleurs on tourne la page (ce que fait deja B2). */
+void app_clic(int x, int y)
+{
+    if (x < 0) x = 0;
+    if (x > OM_W - 1) x = OM_W - 1;
+    if (y < 0) y = 0;
+    if (y > OM_H - 1) y = OM_H - 1;
+    g.mx = x; g.my = y; g.souris = true;
+
+    if (g.boot < 2) { g.boot = 2; app_redessine(true); return; }
+
+    if (g.vue == VUE_BUREAU) {
+        int i = ui_clic_bureau(x, y);
+        if (i >= 0 && i != 99) {
+            g.sel = i;
+            int v = ui_vue_pour_icone(i);
+            app_vue(v);
+            message(ui_icone_nom(i));
+            if (v == VUE_SAFARI) safari_lance(NULL);
+        } else {
+            message(i == 99 ? "Corbeille" : NULL);
+            app_redessine(false);
+        }
+        return;
+    }
+
+    /* fenetre ouverte : barre de titre ou pied = fermer, corps = page */
+    if (y < OM_WIN_Y + OM_TITRE_H + 1 || y >= OM_PIED_Y) {
+        app_vue(VUE_BUREAU);
+        message("Bureau");
+        return;
+    }
+    g.page++;
+    app_redessine(false);
 }
 
 void app_geste(int btn, int type, int duree_ms)

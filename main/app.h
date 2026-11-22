@@ -45,6 +45,9 @@ typedef struct {
     char message[40];         /* bandeau temporaire                   */
     int  message_ms;
     unsigned rendu_ms;
+    /* souris : position du pointeur, envoyee par le reseau (POSTE, curl) */
+    int  mx, my;
+    bool souris;
     /* SAFARI : le lecteur de pages en mode texte */
     int  saf_etat;            /* 0 jamais, 1 en cours, 2 pret, 3 erreur   */
     int  saf_code;            /* code HTTP                                */
@@ -63,5 +66,6 @@ app_t *app_etat(void);
 bool  app_plein_rafraichissement(void);
 void  app_vue(int vue);            /* force une vue (API et tests)      */
 void  app_bouton(int btn, int type, int duree_ms); /* alias de geste  */
+void  app_clic(int x, int y);      /* clic a l'ecran, en pixels (0..199) */
 
 #endif

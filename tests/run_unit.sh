@@ -25,6 +25,10 @@ suite() {   # suite <nom> <binaire> <sources...>
 # HTML -> texte, pagination : le cœur de SAFARI
 suite safari test_safari tests/unit/test_safari.cpp main/safari_txt.cpp
 
+# geometrie du clic : les zones tombent-elles sur le dessin ?
+suite souris test_souris tests/unit/test_souris.cpp main/ui.cpp main/art.cpp \
+    tools/safari_stub.cpp
+
 echo
 if [ $rc -eq 0 ]; then echo "unitaires : tout bon"; else echo "unitaires : $rc suite(s) en echec"; fi
 exit $rc

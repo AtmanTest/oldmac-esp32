@@ -24,6 +24,7 @@ int  ui_icone_y(int i);
 const char *ui_icone_nom(int i);
 int  ui_vue_pour_icone(int i);
 int  ui_icone_sous(int x, int y);       /* icone touchee, -1 sinon */
+int  ui_clic_bureau(int x, int y);      /* icone (ou corbeille=99), -1 sinon */
 int  ui_lignes_finder(void);
 
 #endif
