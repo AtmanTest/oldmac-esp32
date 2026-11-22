@@ -1,5 +1,11 @@
 # Journal des versions — oldmac-esp32
 
+## 1.2.1 — 2026-11-22 — la version annoncée suit VERSION
+
+### Corrige
+- `OM_VERSION` était resté à « 1.0.0 » : `/etat` et la fenêtre « A propos »
+  annonçaient 1.0.0 alors que VERSION disait 1.2.0. Les deux disent 1.2.0.
+
 ## 1.2.0 — 2026-11-22 — une souris pour le Macintosh
 
 Pas de souris USB possible sur cette carte (le port sert au flash et à

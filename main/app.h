@@ -8,7 +8,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-#define OM_VERSION "1.0.0"
+#define OM_VERSION "1.2.0"
 
 enum {
     VUE_BUREAU = 0,
