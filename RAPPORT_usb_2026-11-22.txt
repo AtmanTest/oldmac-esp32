@@ -1,0 +1,200 @@
+RAPPORT — BATMino sur USB (/dev/ttyACM0, hub 1-1.3)
+Date: 22 novembre 2026, session CLI Hermes — hôte AIR1 (CachyOS)
+Portée: tout ce qui a été constaté et fait sur cette carte, avec les commandes rejouables.
+
+====================================================================
+1. QUESTION DE DÉPART
+====================================================================
+« tu vois bien deux esp32 différents ? » — vérifier si deux ESP32 distincts sont
+présents sur la machine, et lesquels.
+
+Réponse: deux ESP32 distincts existent bien, mais un seul est sur USB (le BATMino).
+Le second est un Cardputer ADV joignable uniquement en Wi-Fi.
+La BLEU (ESP32-D0WDQ6, USB-UART CP210x) n'est pas branchée.
+
+====================================================================
+2. CHRONOLOGIE DES VÉRIFICATIONS
+====================================================================
+tentative 1 (~09:33)  lsusb: aucun ESP32. Aucun /dev/ttyUSB*, /dev/ttyACM*.
+tentative 2 (~09:34)  même chose. Journal noyau: le seul événement USB est
+                      09:34:12 « usb 1-1.1: USB disconnect, device number 4 »
+                      = retrait de la clé SanDisk Cruzer Force 16 Go.
+                      Surveillance udev 20 s: zéro événement.
+tentative 3 (~09:37)  LA CARTE APPARAÎT:
+                      Bus 001 Device 005: ID 303a:1001 Espressif USB JTAG/serial debug unit
+                      /dev/ttyACM0 (créé à 09:37, root:uucp 166,0)
+                      /dev/serial/by-id/usb-Espressif_USB_JTAG_serial_debug_unit_70:04:1D:D7:AA:28-if00
+                      Port physique: 1-1.3 (3e port du hub Genesys Logic 05e3:0610).
+                      Le hub n'a qu'un seul enfant: cette carte.
+
+Conclusion de la panne de détection: électrique (câble/port), pas logiciel —
+quand la carte est correctement reliée, elle s'énumère immédiatement, même
+avant tout firmware valide.
+
+====================================================================
+3. IDENTITÉ MATÉRIELLE (relevée, pas supposée)
+====================================================================
+USB
+  VID:PID            303a:1001 (Espressif, USB JTAG/serial debug unit)
+  bcdDevice          0101        Vitesse: 12 Mbit/s (full speed)
+  Interfaces         3 (CDC 020200, CDC data 0a0200, vendor ffff01)
+  Pilote hôte        cdc_acm  → /dev/ttyACM0 (USB natif, PAS de CP210x/CH34x,
+                     donc pas de ttyUSB: c'est l'USB-Serial/JTAG du S3)
+  Numéro de série   70:04:1D:D7:AA:28 (= la MAC du silicium)
+
+Puce (esptool v4.12.0, flash_id)
+  Chip              ESP32-S3-PICO-1 (LGA56), révision v0.2
+  Features          Wi-Fi + BLE, 8 Mo flash intégrée (GD), 8 Mo PSRAM (AP_3v3)
+  Flash             8 Mo, manufacturer 0xc8 (GigaDevice), device 0x4017
+                    quad (4 lignes) fixé en eFuse, tension 3,3 V en eFuse
+  PSRAM             octal, 64 Mbit, génération 3, bon die, 3 V, 80 MHz
+  Cristal           40 MHz ; CPU 160 MHz
+  Mode USB          USB-Serial/JTAG
+  MAC               70:04:1d:d7:aa:28
+
+C'est bien le BATMino (S3 + PSRAM + e-paper 200x200) et non le Cardputer:
+le log série affiche « e-paper pret (200x200) ».
+
+====================================================================
+4. CONTENU DE LA FLASH (lu à la source)
+====================================================================
+Table de partitions lue à 0x8000 (identique à ~/Projets/oldmac-esp32/partitions.csv):
+
+  0  nvs        data nvs     0x009000  0x006000
+  1  otadata    data ota     0x00f000  0x002000
+  2  phy_init   data phy     0x011000  0x001000
+  3  ota_0      app  ota_0   0x020000  0x170000   (1,5 Mo)
+  4  ota_1      app  ota_1   0x190000  0x170000   (1,5 Mo)
+  5  storage    data spiffs  0x310000  0x100000   (1 Mo: jetons + réglages)
+
+Descripteur d'application lu à 0x20020 (partitions ota_0):
+  Project name   oldmac
+  App version    1
+  Compile time   Nov 20 2026 19:19:32
+  ESP-IDF        v5.5.1
+  ELF SHA256     9aceb956a…
+
+Binaire correspondant sur le disque: ~/Projets/oldmac-esp32/build/oldmac.bin
+  927 280 octets (≈ 1,06 Mo chargés depuis 0x20000) — tient dans les 1,5 Mo.
+Bootloader compilé Nov 20 2026 19:20:28, ESP-IDF v5.5.1.
+Dernière compilation: 20 nov 19:24 (build/ = 151 Mo).
+
+Autrement dit: la carte ne porte pas le firmware BATMino « classique » mais
+oldmac-esp32 v1.0.0 (projet ~/Projets/oldmac-esp32), qui pilote la même dalle
+e-paper 200x200 et expose une API HTTP.
+
+====================================================================
+5. CE QUE FAIT LE FIRMWARE AU DÉMARRAGE (log série réel, 115200)
+====================================================================
+rst:0x15 (USB_UART_CHIP_RESET)   ← reset provoqué par nos commandes esptool
+boot:0x8 (SPI_FAST_FLASH_BOOT), QIO 80 MHz, 8 Mo
+
+I (915)  oldmac: oldmac-esp32 : demarrage
+I (1065) epd: init : debut (busy=0)
+W (2965) epd: BUSY pendant 1758 ms        ← réveil lent de la dalle
+W (3765) epd: BUSY pendant 577 ms
+I (3765) oldmac: e-paper pret (200x200)
+I (3765) temperature_sensor: Range [20°C ~ 100°C], error < 2°C
+I (3765) pp/net80211: rom versions e7ae62f
+I (3785) wifi_init: … (tampons TCP/IP)
+I (3825) oldmac: wifi : essai sur Bbox-AE58B901
+W (5025) wifi:sta_scan: STA is connecting, scan are not allowed!
+W (5025) oldmac: scan wifi : impossible
+I (5025) oldmac: api : http://<ip>/ (etat, ecran, vue, bouton)
+I (5025) oldmac: oldmac 1.0.0 pret (200x200, 1 bit)
+puis cycles réguliers « epd: BUSY pendant ~1755 ms » (rafraîchissements)
+
+Sur 30 s de capture: AUCUNE ligne « got ip », aucune raison d'échec explicite.
+La carte reste donc hors réseau: son API HTTP est injoignable, seule la voie
+USB (série) fonctionne.
+
+====================================================================
+6. POURQUOI LE WI-FI ÉCHOUE (cause identifiée dans le code)
+====================================================================
+~/Projets/oldmac-esp32/main/secrets.h (non versionné, présent en local):
+  WIFI_SSID      "Bbox-AE58B901"
+  WIFI_SSID_ALT  "Bbox-AE58B901-Plus"
+  WIFI_SSID_ALT2 "17pro"
+et main/app.h: essai_wifi 0 = bbox, 1 = son SSID « Plus », 2 = 17pro.
+
+Or le réseau courant de la machine est « GL-BE10000-baa » (192.168.8.0/24,
+passerelle 192.168.8.1). Aucun des trois SSID connus de la carte n'est ce
+réseau → la carte ne peut pas s'associer. Le SSID de la bbox est absent/à
+portée perdue.
+
+Conséquence pratique: POSTE et les outils Wi-Fi (/etat /ecran /bouton /maj)
+sont inopérants sur cette carte tant qu'elle n'a pas d'IP.
+
+Piège de nommage: espressif.lan / espressif.local se résolvent aujourd'hui sur
+192.168.8.228 = le Cardputer (MAC 80:45:6B:77:55:78), PAS sur le BATMino.
+Les deux prennent le nom mDNS par défaut « espressif » → risque de collision
+de nom le jour où le BATMino rejoint le réseau.
+
+====================================================================
+7. ÉTAT ACTUEL DE LA CARTE
+====================================================================
+- Branchée, alimentée, énumérée, /dev/ttyACM0 accessible sans sudo (groupe uucp).
+- Firmware oldmac 1.0.0 en marche, e-paper initialisé (200x200, 1 bit).
+- Wi-Fi hors ligne (SSID inconnu) → pas d'IP, pas d'API HTTP.
+- Voie de contrôle disponible: série USB 115200 (logs, reset) et esptool
+  (identification, lecture/écriture flash sur ttyACM0).
+
+====================================================================
+8. COMMANDES REPLAYABLES (environnement vérifié)
+====================================================================
+Attention: l'export IDF échoue tel quel (« ESP-IDF Python virtual environment
+/home/taz/.espressif/... not found »). Il faut IDF_TOOLS_PATH, et lancer hors
+du venv Hermes (env -i):
+
+  env -i HOME=/home/taz TERM=dumb PATH=/usr/bin:/bin \
+      IDF_TOOLS_PATH=/home/taz/esp/tools \
+      bash -lc 'source /home/taz/esp/esp-idf/export.sh >/dev/null 2>&1 && esptool.py -p /dev/ttyACM0 -b 460800 flash_id'
+
+Vérifications rapides:
+  lsusb | grep -i espressif
+  ls -l /dev/ttyACM0 /dev/serial/by-id/
+  ls -d /sys/bus/usb/devices/1-1.*        # 1-1.3 = la carte
+  udevadm monitor --udev --subsystem-match=usb   # pendant un branchement
+
+Lecture flash:
+  esptool.py -p /dev/ttyACM0 -b 460800 read_flash 0x8000 0x1000 pt.bin
+  esptool.py -p /dev/ttyACM0 -b 460800 read_flash 0x20020 0x100 desc.bin
+
+Log série avec reset (pyserial du venv IDF, /home/taz/esp/tools/python_env/
+idf5.5_py3.14_env/bin/python):
+  s = serial.Serial('/dev/ttyACM0', 115200, timeout=0.2)
+  s.setDTR(False); s.setRTS(True); time.sleep(0.1)
+  s.setDTR(False); s.setRTS(False)      # → relance l'app, puis on lit
+
+Flasher (après correction du SSID):
+  cd ~/Projets/oldmac-esp32 && idf.py -p /dev/ttyACM0 flash
+
+====================================================================
+9. POINTS DE VIGILANCE / ÉCARTS AUX RÈGLES DU PROJET
+====================================================================
+a) ~/Projets/oldmac-esp32 n'est PAS un dépôt git (git log: « ni ceci ni aucun
+   de ses répertoires parents n'est un dépôt ») et n'a ni VERSION, ni README,
+   ni CHANGELOG. La flash annonce pourtant « App version 1 » et le code
+   « oldmac 1.0.0 ». Écart avec la règle: un dépôt par projet, VERSION +
+   CHANGELOG + tag.
+b) secrets.h (SSID/mot de passe) est bien non versionné et secrets.h.example
+   existe — conforme.
+c) L'API annoncée par le firmware (etat, ecran, vue, bouton) diffère de celle
+   documentée pour le BATMino dans POSTE (/etat /ecran /bouton /page) :
+   le nom « vue » remplace « page ». À vérifier avant de brancher POSTE dessus.
+
+====================================================================
+10. SUITE PROPOSÉE (rien n'a été modifié sur la carte)
+====================================================================
+1. Ajouter le réseau courant dans secrets.h (GL-BE10000-baa) en tête, garder la
+   bbox en secours; forcer un hostname distinct (batmino.local) pour éviter la
+   collision mDNS avec le Cardputer.
+2. Recompiler et flasher par USB, puis vérifier « got ip » dans le log et
+   GET /etat.
+3. Versionner ~/Projets/oldmac-esp32 (git init + VERSION 1.0.0 + CHANGELOG,
+   tag v1.0.0) si c'est bien le firmware de référence du BATMino.
+4. Trancher: cette carte doit-elle porter oldmac-esp32 ou le firmware BATMino
+   de ~/Projets/batmino ? Aujourd'hui elle porte oldmac.
+
+Aucune écriture n'a été faite sur la flash pendant cette session: seulement des
+lectures (0x8000 et 0x20020) et des resets.
