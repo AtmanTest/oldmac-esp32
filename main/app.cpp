@@ -64,6 +64,9 @@ void app_redessine(bool plein)
 static void maj_heure(void)
 {
     time_t t = time(NULL);
+    /* SNTP a repondu quand l'horloge depasse 2023 : avant, time() rend
+       l'epoch de 1970 et l'ecran ecrirait « 01/01 00:00 » */
+    g.heure_ok = (t > 1700000000);
     if (!g.heure_ok) {
         strcpy(g.heure, "--:--");
         strcpy(g.date, "--/--");
@@ -107,6 +110,13 @@ static void maj_mesures(void)
         if (esp_wifi_sta_get_ap_info(&ap) == ESP_OK) {
             g.rssi = ap.rssi;
             snprintf(g.ssid, sizeof(g.ssid), "%.23s", (const char *)ap.ssid);
+        }
+        /* l'heure : SNTP demarre des que le reseau est la (l'evenement IP
+           n'arrivant pas, on ne peut pas s'appuyer dessus) */
+        if (!sntp_lance) {
+            esp_sntp_config_t cfg = ESP_NETIF_SNTP_DEFAULT_CONFIG("pool.ntp.org");
+            esp_netif_sntp_init(&cfg);
+            sntp_lance = true;
         }
         /* la page de SAFARI se charge une fois le reseau la, toute seule */
         static bool saf_auto;
@@ -410,7 +420,12 @@ void app_geste(int btn, int type, int duree_ms)
             else { app_vue(VUE_BUREAU); message("Bureau"); }
         } else {                       /* B1 tenu : redemarrer le Mac */
             g.boot = 0;
-            boot_ms = maintenant_ms();
+            /* l'heure locale : sans TZ, SNTP rend UTC et l'horloge avance d'une
+       heure en hiver (constate : 09:26 affiche a 10:26 a Paris) */
+    setenv("TZ", "CET-1CEST,M3.5.0,M10.5.0/3", 1);
+    tzset();
+
+    boot_ms = maintenant_ms();
             message("Redemarrage");
             app_redessine(true);
         }
@@ -536,6 +551,11 @@ void app_start(const char *ssid, void (*ecran)(const uint8_t *fb, bool plein))
     snprintf(g.heure, sizeof(g.heure), "--:--");
     snprintf(g.date, sizeof(g.date), "--/--");
     snprintf(g.ip, sizeof(g.ip), "n.d.");
+    /* l'heure locale : sans TZ, SNTP rend UTC et l'horloge avance d'une
+       heure en hiver (constate : 09:26 affiche a 10:26 a Paris) */
+    setenv("TZ", "CET-1CEST,M3.5.0,M10.5.0/3", 1);
+    tzset();
+
     boot_ms = maintenant_ms();
     mesure_ms = 0;
     tick_ms = 0;

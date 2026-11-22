@@ -1,5 +1,21 @@
 # Journal des versions — oldmac-esp32
 
+## 1.1.1 — 2026-11-22 — l'heure et le reseau disent la verite
+
+### Corrige
+- `heure_ok` n'etait jamais mis a vrai : l'horloge restait a « --:-- » et la
+  fenetre Horloge affichait « heure non synchronisee » alors que le reseau
+  etait monte. Il est maintenant deduit de l'horloge (SNTP a repondu quand
+  `time()` depasse 2023).
+- SNTP demarre depuis la lecture de l'interface reseau (l'evenement IP_EVENT
+  n'arrive pas sur cette carte, il ne pouvait donc rien declencher).
+- Fuseau horaire : `TZ=CET-1CEST` pose au demarrage ; sans lui l'heure SNTP
+  s'affichait en UTC (09:26 a 10:26 a Paris).
+
+### Mesure
+- `/etat` sur la carte : `wifi:true`, `ip:192.168.8.209`, `heure:10:29`,
+  `heure_ok:true`, `safari:{etat:2, code:200, lignes:240, pages:19}`.
+
 ## 1.1.0 — 2026-11-22 — SAFARI, le web en texte
 
 ### Ajoute
