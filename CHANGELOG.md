@@ -1,5 +1,15 @@
 # Journal des versions — oldmac-esp32
 
+## 1.2.2 — 2026-11-22 — la version ne peut plus diverger
+
+### Corrige
+- `OM_VERSION` est maintenant fourni par la compilation, lu dans `VERSION`
+  (`main/CMakeLists.txt`), et `VERSION` est declaree dependance de
+  configuration : changer le fichier relance cmake, la compilation et la
+  chaine annoncee. Prouve en passant `VERSION` a 9.9.9 : l'image contenait
+  9.9.9, puis 1.2.2 apres restauration. La version de la 1.2.1 etait encore
+  ecrite en dur dans `app.h`.
+
 ## 1.2.1 — 2026-11-22 — la version annoncée suit VERSION
 
 ### Corrige

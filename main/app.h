@@ -8,7 +8,11 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-#define OM_VERSION "1.2.0"
+/* la version vient de VERSION, passee par main/CMakeLists.txt : elle ne peut
+   plus diverger du fichier (c'etait le cas : 1.0.0 annonce pour 1.2.0) */
+#ifndef OM_VERSION
+#define OM_VERSION "1.2.1"
+#endif
 
 enum {
     VUE_BUREAU = 0,
